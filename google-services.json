@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "234435366724",
+    "firebase_url": "https://chatapp-efe14.firebaseio.com",
+    "project_id": "chatapp-efe14",
+    "storage_bucket": "chatapp-efe14.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:234435366724:android:bf5012fb4eb538d2139111",
+        "android_client_info": {
+          "package_name": "com.salamcompany.chatapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "234435366724-tf3bqr646shttmihqhjt48njk1ivp7f2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.salamcompany.chatapp",
+            "certificate_hash": "4cb8c70107c07f40d0c241e4ceec9dfcf3b4876f"
+          }
+        },
+        {
+          "client_id": "234435366724-1skk7m4lr90s87eefiipjkiff8aho8ge.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlfxIm8lD3Mbb-bfax3bTeI4mvl492FPU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "234435366724-1skk7m4lr90s87eefiipjkiff8aho8ge.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
