@@ -307,7 +307,7 @@ class _LoginState extends State<PhoneVerify> {
           Navigator.pushReplacementNamed(context, 'Login');
         }
         else{
-          Firestore.instance.collection("users").document(user.user.uid).setData({"uid": user.user.uid,"name":this.username,"phone": this.phoneNo,"avatarUrl":avatarurl});
+          Firestore.instance.collection("users").document(user.user.uid).setData({"uid": user.user.uid,"name":this.username,"phone": this.phoneNo,"avatarUrl":avatarurl,"chattingWith":null});
           Constants
               .saveUserLoggedInSharedPreference(
                   true);

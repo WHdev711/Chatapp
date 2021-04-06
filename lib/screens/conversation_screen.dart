@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'package:intl/intl.dart';
 
 // import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:alsalamchat/services/search_service.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -18,22 +20,20 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:random_string/random_string.dart';
 import 'package:alsalamchat/utils/permissions.dart';
-import 'package:alsalamchat/models/home_container_model.dart';// model definition
-
-
+import 'package:alsalamchat/models/home_container_model.dart'; // model definition
 
 class ConversationScreen extends StatefulWidget {
+
   final String name,
       profilePicUrl /*, email*/,
       chatRoomid,
       myNameFinal,
       myPhone,
       myAvatarFinal;
-      double width;
+  double width;
   Stream messagesStream;
   GlobalKey<ScaffoldState> scaffoldKey;
   HomeContainerModel toUserinfo;
-
 
   ConversationScreen(
       {this.name,
@@ -61,6 +61,8 @@ File _selectedImage;
 bool selectGif = false;
 
 bool isImageUploading = false;
+bool userunread = false;
+
 
 DatabaseMethods databaseMethods = new DatabaseMethods();
 
@@ -172,10 +174,19 @@ class _ConversationScreenState extends State<ConversationScreen>
     /// adding first message
     //addMessage("Hi");
     getMyInfo();
+
     databaseMethods.getChats(widget.chatRoomid).then((result) {
       widget.messagesStream = result;
       setState(() {});
     });
+    Firestore.instance
+        .collection('users')
+        .document(_myUid)
+        .updateData({'chattingWith': widget.toUserinfo.userUid});
+    Firestore.instance
+        .collection('chatRooms')
+        .document(widget.chatRoomid)
+        .updateData({'$_myUid': false});
     //print(conversations.toString() + "data");
     super.initState();
   }
@@ -194,6 +205,7 @@ class _ConversationScreenState extends State<ConversationScreen>
     _selectedImage = null;
     selectGif = false;
     isImageUploading = false;
+
     super.dispose();
   }
 
@@ -229,6 +241,8 @@ class _ConversationScreenState extends State<ConversationScreen>
                                   messageId: snapshot
                                       .data.documents[index].data["messageId"],
                                   chatRoomId: widget.chatRoomid,
+                                  messagedate: snapshot
+                                      .data.documents[index].data["time"],
                                 );
                               })
                           : Container();
@@ -254,6 +268,7 @@ class _ConversationScreenState extends State<ConversationScreen>
 
     var downloadUrl;
 
+
     if ((_selectedImage) != null) {
 // uploading image  to firebase storage
       StorageReference blogImagesStorageReference = FirebaseStorage.instance
@@ -274,11 +289,29 @@ class _ConversationScreenState extends State<ConversationScreen>
       "message": mesage,
       "time": FieldValue.serverTimestamp(),
       "messageId": messageId,
-      "imgUrl": _selectedImage != null ? downloadUrl : ""
+      "imgUrl": _selectedImage != null ? downloadUrl : "",
+      "idFrom": _myUid,
+      "idTo": widget.toUserinfo.userUid
     };
-
+    SearchService().searchChatwith(widget.toUserinfo.userUid).then((result) {
+      print(result.data['chattingWith']);
+      if(result.data['chattingWith'] == _myUid){
+        setState(() {
+        userunread = false;
+        });
+      } else {
+        setState(() {
+        userunread = true;
+        });
+      }
+    });
     /// update last message send
+          print('hello:');
+          print(userunread);
+    
     Map<String, dynamic> chatRoomUpdate = {
+      "$_myUid": false,
+      "${widget.toUserinfo.userUid}": userunread,
       "lastmessage": mesage,
       "lastMessageSendBy": _myName,
       'timestamp': FieldValue.serverTimestamp()
@@ -306,7 +339,7 @@ class _ConversationScreenState extends State<ConversationScreen>
       isImageUploading = false;
     });
 
-   _scrollToBottom();
+    _scrollToBottom();
   }
 
   @override
@@ -315,19 +348,18 @@ class _ConversationScreenState extends State<ConversationScreen>
       statusBarColor: Colors.black,
       statusBarBrightness: Brightness.dark,
     ));
-
-    return  Stack(
+    return Stack(
       children: [
         Container(
-            decoration: BoxDecoration(
-                gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Colors.black.withOpacity(1),
-                      Colors.black.withOpacity(.6),
-                    ])),
-          ),
+          decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                Colors.black.withOpacity(1),
+                Colors.black.withOpacity(.6),
+              ])),
+        ),
         Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: <Widget>[
@@ -342,41 +374,50 @@ class _ConversationScreenState extends State<ConversationScreen>
               child: Row(
                 children: [
                   GestureDetector(
-                          onTap: () {
-                            homeContainerModel.isChatSelected = false;
-                            /* Navigator.push(
+                    onTap: () {
+                      homeContainerModel.isChatSelected = false;
+                      Firestore.instance
+                          .collection('users')
+                          .document(_myUid)
+                          .updateData({'chattingWith': null});
+                      /* Navigator.push(
                       context, MaterialPageRoute(builder: (context) => Search()));*/
-                          },
-                          child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
-                              child:Icon(
-                                kIsWeb
-                                    ?  Icons.arrow_back
-                                : Platform.isAndroid
-                                    ? Icons.arrow_back
-                                    : Icons.arrow_back_ios,
-                                color: Colors.white,
-                              )),
-                        ),
+                    },
+                    child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Icon(
+                          kIsWeb
+                              ? Icons.arrow_back
+                              : Platform.isAndroid
+                                  ? Icons.arrow_back
+                                  : Icons.arrow_back_ios,
+                          color: Colors.white,
+                        )),
+                  ),
                   Spacer(),
                   GestureDetector(
                     onTap: () async =>
-                          await Permissions.microphonePermissionsGranted()
-                              ? CallUtils.dialVoice(
-                                  fromuid: _myUid,
-                                  fromname: _myName,
-                                  fromprofilephoto: _myAvatar,
-                                  touid: widget.toUserinfo.userUid,
-                                  toname: widget.toUserinfo.userNameGlobal,
-                                  toprofilephoto: widget.toUserinfo.userPicUrlGlobal,
-                                  context: context,
-                                  callis: "audio")
-                              // ? {print("this is voice")}
-                              : {},
-                      /* Navigator.push(
+                        await Permissions.microphonePermissionsGranted()
+                            ? {
+                                addMessage(
+                                    "Audio Call start between $_myName and ${widget.toUserinfo.userNameGlobal}"),
+                                CallUtils.dialVoice(
+                                    fromuid: _myUid,
+                                    fromname: _myName,
+                                    fromprofilephoto: _myAvatar,
+                                    touid: widget.toUserinfo.userUid,
+                                    toname: widget.toUserinfo.userNameGlobal,
+                                    toprofilephoto:
+                                        widget.toUserinfo.userPicUrlGlobal,
+                                    context: context,
+                                    callis: "audio")
+                              }
+                            // ? {print("this is voice")}
+                            : {},
+                    /* Navigator.push(
                       context, MaterialPageRoute(builder: (context) => Search()));*/
                     // },
-                    
+
                     child: Container(
                         padding: EdgeInsets.symmetric(horizontal: 16),
                         child: Icon(
@@ -385,19 +426,25 @@ class _ConversationScreenState extends State<ConversationScreen>
                         )),
                   ),
                   GestureDetector(
-                    onTap: () async =>
-                          await Permissions.cameraandmicrophonePermissionsGranted()
-                              ? CallUtils.dialVideo(
-                                  fromuid: _myUid,
-                                  fromname: _myName,
-                                  fromprofilephoto: _myAvatar,
-                                  touid: widget.toUserinfo.userUid,
-                                  toname: widget.toUserinfo.userNameGlobal,
-                                  toprofilephoto: widget.toUserinfo.userPicUrlGlobal,
-                                  context: context,
-                                  callis: "video")
-                              // ? {print("this is voice")}
-                              : {},
+                    onTap: () async => await Permissions
+                            .cameraandmicrophonePermissionsGranted()
+                        ? {
+                            addMessage(
+                                "Video Call start between $_myName and ${widget.toUserinfo.userNameGlobal}"),
+                            CallUtils.dialVideo(
+                                fromuid: _myUid,
+                                fromname: _myName,
+                                fromprofilephoto: _myAvatar,
+                                touid: widget.toUserinfo.userUid,
+                                toname: widget.toUserinfo.userNameGlobal,
+                                toprofilephoto:
+                                    widget.toUserinfo.userPicUrlGlobal,
+                                context: context,
+                                callis: "video")
+                          }
+
+                        // ? {print("this is voice")}
+                        : {},
                     child: Container(
                         padding: EdgeInsets.symmetric(horizontal: 16),
                         child: Icon(
@@ -601,7 +648,6 @@ class _ConversationScreenState extends State<ConversationScreen>
                           : Column(
                               mainAxisSize: MainAxisSize.min,
                               children: <Widget>[
-                                
                                 moreOptions ?? false
                                     ? Stack(
                                         children: <Widget>[
@@ -652,41 +698,42 @@ class _ConversationScreenState extends State<ConversationScreen>
                                                       kIsWeb
                                                           ? Container()
                                                           : GestureDetector(
-                                                        onTap: () {
-                                                          getImageFromGallery();
-                                                        },
-                                                        child: Container(
-                                                          child: Image.asset(
-                                                            "assets/gallery.png",
-                                                            width: 25,
-                                                            height: 25,
-                                                          ),
-                                                          decoration: BoxDecoration(
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          25),
-                                                              gradient: LinearGradient(
-                                                                  colors: [
-                                                                    const Color(
-                                                                        0x36FFFFFF),
-                                                                    const Color(
-                                                                        0x0FFFFFFF)
-                                                                  ],
-                                                                  begin: FractionalOffset
-                                                                      .topLeft,
-                                                                  end: FractionalOffset
-                                                                      .bottomRight)),
-                                                          padding:
-                                                              EdgeInsets.all(
-                                                                  10),
-                                                        ),
-                                                      ),
+                                                              onTap: () {
+                                                                getImageFromGallery();
+                                                              },
+                                                              child: Container(
+                                                                child:
+                                                                    Image.asset(
+                                                                  "assets/gallery.png",
+                                                                  width: 25,
+                                                                  height: 25,
+                                                                ),
+                                                                decoration: BoxDecoration(
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                            25),
+                                                                    gradient: LinearGradient(
+                                                                        colors: [
+                                                                          const Color(
+                                                                              0x36FFFFFF),
+                                                                          const Color(
+                                                                              0x0FFFFFFF)
+                                                                        ],
+                                                                        begin: FractionalOffset
+                                                                            .topLeft,
+                                                                        end: FractionalOffset
+                                                                            .bottomRight)),
+                                                                padding:
+                                                                    EdgeInsets
+                                                                        .all(
+                                                                            10),
+                                                              ),
+                                                            ),
                                                       kIsWeb
                                                           ? Container()
                                                           : SizedBox(
-                                                        width: 16,
-                                                      ),
+                                                              width: 16,
+                                                            ),
                                                       GestureDetector(
                                                         onTap: () {
                                                           setState(() {
@@ -886,12 +933,16 @@ class _ConversationScreenState extends State<ConversationScreen>
                                       color: Colors.black54,
                                       height: kIsWeb
                                           ? 100
-                                          : Platform.isIOS ?? false ? 90 : 80,
+                                          : Platform.isIOS ?? false
+                                              ? 90
+                                              : 80,
                                     ),
                                     Container(
                                       height: kIsWeb
                                           ? 100
-                                          : Platform.isIOS ?? false ? 90 : 80,
+                                          : Platform.isIOS ?? false
+                                              ? 90
+                                              : 80,
                                       // color: Color(0x54FFFFFF),
                                       color: Colors.transparent,
                                       padding: EdgeInsets.only(
@@ -905,30 +956,26 @@ class _ConversationScreenState extends State<ConversationScreen>
                                           left: 16),
                                       child: Row(
                                         children: <Widget>[
-                                          
                                           GestureDetector(
-                                        
-                                            // onTap: () {
-                                            //   setState(() {
-                                            //     moreOptions = !moreOptions;
-                                            //   });
+                                            onTap: () {
+                                              setState(() {
+                                                moreOptions = !moreOptions;
+                                              });
 
-                                            //   if (!moreOptions) {
-                                            //     _anglecontroller.reverse();
-                                            //   } else {
-                                            //     _anglecontroller.forward();
-                                            //   }
+                                              if (!moreOptions) {
+                                                _anglecontroller.reverse();
+                                              } else {
+                                                _anglecontroller.forward();
+                                              }
 
-                                            //   /*   ///
-                                            // if(_anglecontroller.status == AnimationStatus.completed){
+                                              /*   ///
+                                            if(_anglecontroller.status == AnimationStatus.completed){
 
-                                            // }else if(_anglecontroller.status == AnimationStatus.dismissed){
+                                            }else if(_anglecontroller.status == AnimationStatus.dismissed){
 
-                                            // }*/
-                                            // },
-                                            onTap: (){
-
+                                            }*/
                                             },
+                                            // onTap: () {},
                                             child: Container(
                                               child: Transform.rotate(
                                                 angle: angle,
@@ -966,14 +1013,22 @@ class _ConversationScreenState extends State<ConversationScreen>
                                                     color: Colors.white,
                                                     fontSize: 15),
                                                 decoration: InputDecoration(
-                                                  enabledBorder:OutlineInputBorder(
-                                                      borderRadius: BorderRadius.circular(50.0),
-                                                      borderSide: BorderSide(color: Colors.white),
-                                                    ),
-                                                  focusedBorder: OutlineInputBorder(
-                                                      borderRadius: BorderRadius.circular(50.0),
-                                                      borderSide: BorderSide(color: Colors.white),
-                                                    ),
+                                                  enabledBorder:
+                                                      OutlineInputBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            50.0),
+                                                    borderSide: BorderSide(
+                                                        color: Colors.white),
+                                                  ),
+                                                  focusedBorder:
+                                                      OutlineInputBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            50.0),
+                                                    borderSide: BorderSide(
+                                                        color: Colors.white),
+                                                  ),
                                                   hintText: "Message ...",
                                                   hintStyle: TextStyle(
                                                       color: Colors.white,
@@ -1039,7 +1094,6 @@ class _ConversationScreenState extends State<ConversationScreen>
     );
   }
 
-
   sendGif(String gifUrl) async {
     if (gifUrl != null && gifUrl != "") {
       String messageId = randomAlphaNumeric(9);
@@ -1048,7 +1102,9 @@ class _ConversationScreenState extends State<ConversationScreen>
         "message": "",
         "time": FieldValue.serverTimestamp(),
         "messageId": messageId,
-        "imgUrl": gifUrl
+        "imgUrl": gifUrl,
+        "idFrom": _myUid,
+        "idTo": widget.toUserinfo.userUid
       };
 
       /// update last message send
@@ -1109,6 +1165,7 @@ class ConversationTile extends StatelessWidget {
   final bool bottomMargin;
   final String messageId;
   final String chatRoomId;
+  final Timestamp messagedate;
 
   ConversationTile(
       {@required this.sendByMe,
@@ -1117,7 +1174,8 @@ class ConversationTile extends StatelessWidget {
       @required this.messageImgUrl,
       @required this.bottomMargin,
       @required this.messageId,
-      @required this.chatRoomId});
+      @required this.chatRoomId,
+      @required this.messagedate});
 
   @override
   Widget build(BuildContext context) {
@@ -1142,7 +1200,7 @@ class ConversationTile extends StatelessWidget {
                         },
                         child: Container(
                           padding: EdgeInsets.only(
-                              top: 17, bottom: 17, left: 20, right: 20),
+                              top: 17, left: 20, right: 20),
                           decoration: BoxDecoration(
                               gradient: LinearGradient(
                                   colors: sendByMe
@@ -1161,19 +1219,43 @@ class ConversationTile extends StatelessWidget {
                                       topRight: Radius.circular(23),
                                       topLeft: Radius.circular(23),
                                       bottomLeft: Radius.circular(23))
-                                  : BorderRadius.only(
+                                  : BorderRadius.only(  
                                       topLeft: Radius.circular(23),
                                       topRight: Radius.circular(23),
                                       bottomRight: Radius.circular(23))),
-                          child: Text(
-                            message,
-                            textAlign: TextAlign.start,
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontFamily: 'OverpassRegular',
-                                fontWeight: FontWeight.w300),
-                          ),
+                          child: Column (
+                            children: <Widget>[
+                            Text(
+                              message,
+                              textAlign: TextAlign.start,
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontFamily: 'OverpassRegular',
+                                  fontWeight: FontWeight.w300),
+                            ),
+                            SizedBox(
+                              height: 10,
+                            ),
+                            Text(
+                              // ( if (messagedate == null) {
+                              //   "heel"
+                              // }
+                              // else{
+                              //   DateFormat('yyyy-MM-dd – kk:mm').format(messagedate.toDate())
+                              // }),
+                              messagedate == null ? "loading":DateFormat('yyyy-MM-dd – kk:mm').format(messagedate.toDate()),
+                              textAlign: TextAlign.start,
+                              style: TextStyle(
+                                  color: Colors.white60,
+                                  fontSize: 10,
+                                  fontFamily: 'OverpassRegular',
+                                  fontWeight: FontWeight.w300),
+                            ),
+                            SizedBox(
+                              height:8,
+                            )
+                          ]),
                         ),
                       )
                     : Container(

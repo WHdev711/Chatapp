@@ -1,0 +1,5 @@
+1.timestamp modify : done
+2.time information add in chat box : doing
+3.user profile setting. : doing
+4.notification : not
+5.user status : not

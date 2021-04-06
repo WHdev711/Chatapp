@@ -13,10 +13,14 @@ import 'package:alsalamchat/services/database.dart';
 import 'package:alsalamchat/services/search_service.dart'; // search 
 import 'package:alsalamchat/views/chatinfo.dart';
 import 'package:flutter/rendering.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_launcher_icons/utils.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:alsalamchat/screens/call_screens/pickup/pickup_layout.dart';
 
 import 'conversation_screen.dart';
 import 'dart:io';
+import 'dart:convert';
 
 class Chat extends StatefulWidget {
   static const routeName = 'Chat';
@@ -45,6 +49,9 @@ Stream messagesStreamHome;
 class _WebHomeState extends State<Chat> {
   ///using key for scaffold
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
+  final FirebaseMessaging firebaseMessaging = FirebaseMessaging();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
 
   ///
 
@@ -63,6 +70,8 @@ class _WebHomeState extends State<Chat> {
     });
 
     getMyInfoAndChat();
+    registerNotification();
+    configLocalNotification();
 
     /// Stream
     if (infoStream == null) {
@@ -80,6 +89,73 @@ class _WebHomeState extends State<Chat> {
     homeContainerModel.messagesStream = null;
     super.dispose();
   }
+
+  void registerNotification() {
+    firebaseMessaging.requestNotificationPermissions();
+
+    firebaseMessaging.configure(onMessage: (Map<String, dynamic> message) {
+      print('onMessage: $message');
+      Platform.isAndroid
+          ? showNotification(message['notification'])
+          : showNotification(message['aps']['alert']);
+      return;
+    }, onResume: (Map<String, dynamic> message) {
+      print('onResume: $message');
+      return;
+    }, onLaunch: (Map<String, dynamic> message) {
+      print('onLaunch: $message');
+      return;
+    });
+
+    firebaseMessaging.getToken().then((token) {
+      print('token: $token');
+      Firestore.instance
+          .collection('users')
+          .document(_myUid)
+          .updateData({'pushToken': token});
+    }).catchError((err) {
+      print(err.message.toString());
+    });
+  }
+
+  void showNotification(message) async {
+    var androidPlatformChannelSpecifics = new AndroidNotificationDetails(
+      Platform.isAndroid
+          ? 'com.salamcompany.chatapp'
+          : 'com.duytq.flutterchatdemo',
+      'Salamcompany chat',
+      'your channel description',
+      playSound: true,
+      enableVibration: true,
+      importance: Importance.Max,
+      priority: Priority.High,
+    );
+    var iOSPlatformChannelSpecifics = new IOSNotificationDetails();
+    var platformChannelSpecifics = new NotificationDetails(
+        androidPlatformChannelSpecifics, iOSPlatformChannelSpecifics);
+
+    print(message);
+//    print(message['body'].toString());
+//    print(json.encode(message));
+
+    await flutterLocalNotificationsPlugin.show(0, message['title'].toString(),
+        message['body'].toString(), platformChannelSpecifics,
+        payload: json.encode(message));
+
+//    await flutterLocalNotificationsPlugin.show(
+//        0, 'plain title', 'plain body', platformChannelSpecifics,
+//        payload: 'item x');
+  }
+
+  void configLocalNotification() {
+    var initializationSettingsAndroid =
+        new AndroidInitializationSettings('@mipmap/launcher_icon');
+    var initializationSettingsIOS = new IOSInitializationSettings();
+    var initializationSettings = new InitializationSettings(
+        initializationSettingsAndroid, initializationSettingsIOS);
+    flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  }
+
 
   getMyInfoAndChat() async {
     _myAvatar = await Constants.getUserAvatarSharedPreference();
@@ -516,7 +592,7 @@ class _HomeState extends State<Home> {
                     end: Alignment.topCenter,
                     colors: [
                   Colors.black.withOpacity(1),
-                  Colors.black.withOpacity(.5),
+                  Colors.black.withOpacity(.3),
                 ])),
       // color: Color(0xff1F1F1F),
       child: SingleChildScrollView(
@@ -555,7 +631,7 @@ class _HomeState extends State<Home> {
                           child: Text(
                             homeContainerModel.isSearching
                                 ? "Cancel"
-                                : "Find Dev",
+                                : "Find",
                             style: TextStyle(
                                 color: Colors.white,
                                 fontFamily: "OverpassRegular",
@@ -693,8 +769,7 @@ class _HomeState extends State<Home> {
                                             unreadMessages: snapshot
                                                     .data
                                                     .documents[index]
-                                                    .data["unreadMessages"] ??
-                                                0,
+                                                    .data["$_myUid"] ,
                                             lastMessageSendBy: snapshot
                                                 .data
                                                 .documents[index]
@@ -870,7 +945,7 @@ void _moreOptionBottomSheet(
 class ChatTile extends StatefulWidget {
   final String userUid,  userPicUrl, lastMessage, chatRoomId;
   final Timestamp timestamp;
-  final int unreadMessages;
+  final bool unreadMessages;
 
   // provide 0
   final String lastMessageSendBy;
@@ -918,7 +993,6 @@ class _ChatTile extends State<ChatTile> {
         homeContainerModel.userPicUrlGlobal = chatuseravatar;
         homeContainerModel.chatRoomIdGlobal = widget.chatRoomId;
         homeContainerModel.userUid = widget.userUid;
-        print(widget.userUid+"hello");
         SearchService().searchByUid(widget.userUid).then((user){
           print(user.documents[0].data['phone'].toString());
           homeContainerModel.userPhoneGlobal =  user.documents[0].data['phone'].toString();
@@ -943,7 +1017,7 @@ class _ChatTile extends State<ChatTile> {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 16),
         color: homeContainerModel.chatRoomIdGlobal == widget.chatRoomId
-            ? Colors.black26
+            ? Colors.black12
             : Colors.transparent,
         width: widget.width ?? MediaQuery.of(context).size.width,
         child: Row(
@@ -985,13 +1059,14 @@ class _ChatTile extends State<ChatTile> {
                         chatuser,
                         style: TextStyle(
                             color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w400),
+                            fontSize: 18,
+                            
+                            fontWeight: FontWeight.bold),
                       ),
                       SizedBox(
                         width: 6,
                       ),
-                      widget.unreadMessages > 0
+                      widget.unreadMessages == true
                           ? Row(
                               children: <Widget>[
                                 Container(
@@ -999,14 +1074,14 @@ class _ChatTile extends State<ChatTile> {
                                   height: 6,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: Constants.colorAccent,
+                                    color: Colors.red[900],
                                   ),
                                 ),
                                 SizedBox(
                                   width: 6,
                                 ),
                                 Text(
-                                  "${widget.unreadMessages}",
+                                  "New",
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 14,
@@ -1026,7 +1101,7 @@ class _ChatTile extends State<ChatTile> {
                         fromMillisecondsSinceEpoch(timestamp.nanoseconds),allowFromNow: true)*/
                         ,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 14,
                           color: Colors.white,
                           fontFamily: 'OverpassRegular',
                         ),
@@ -1043,16 +1118,29 @@ class _ChatTile extends State<ChatTile> {
                         ? Row(
                             children: <Widget>[
                               Image.asset(
-                                "assets/back_arrow.png",
+                                "assets/receive_arrow.png",
                                 width: 14,
                                 height: 14,
+                                color: Constants.colorAccent  ,
                               ),
                               SizedBox(
                                 width: 8,
                               ),
                             ],
                           )
-                        : Container(),
+                        : Row(
+                            children: <Widget>[
+                              Image.asset(
+                                "assets/back_arrow.png",
+                                width: 14,
+                                height: 14,
+                                color: Colors.red  ,
+                              ),
+                              SizedBox(
+                                width: 8,
+                              ),
+                            ],
+                          ),
                     Container(
                       width: (widget.width ?? MediaQuery.of(context).size.width) - 158,
                       child: Text(
@@ -1062,24 +1150,24 @@ class _ChatTile extends State<ChatTile> {
                         style: TextStyle(
                           fontSize: 14,
                           color:
-                              widget.unreadMessages > 0 ? Colors.white : Colors.white,
+                              Colors.white,
                           fontFamily: 'OverpassRegular',
                         ),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(
-                  height: 14,
-                ),
-                Container(
-                  width: (widget.width ?? MediaQuery.of(context).size.width) - 80,
-                  height: 0.4,
-                  color: Colors.white70,
-                ),
-                SizedBox(
-                  height: 8,
-                )
+                // SizedBox(
+                //   height: 14,
+                // ),
+                // Container(
+                //   width: (widget.width ?? MediaQuery.of(context).size.width) - 80,
+                //   height: 0.4,
+                //   color: Colors.white70,
+                // ),
+                // SizedBox(
+                //   height: 8,
+                // )
               ],
             )
           ],

@@ -13,6 +13,11 @@ class SearchService {
         .getDocuments();
   }
 
+  searchChatwith(String useruid) {
+    return Firestore.instance
+        .collection('users').document(useruid).get();
+  }
+
   searchByUid(String searchField) {
     return Firestore.instance
         .collection('users')
