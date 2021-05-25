@@ -1,0 +1,115 @@
+username
+ bilal77su@gmail.com
+password
+ bsmbsm@177
+
+godaddy
+
+Name: Bilal Makki
+Address: Baghdad
+Baghdad, Baghdad
+Iraq 100013
+Telephone: +964.7800301706
+
+cpanel(bluehost)
+User: faturaty
+162.241.244.115
+
+rootuser:
+Faturatie.com
+faturati
+	142.4.25.75
+pass: Bsmbsm@177
+
+
+"FkWY*K@1OX:Y
+
+new gmail
+	user:appc31058@gmail.com
+
+	pw:security123!
+
+	phone:+9647800301706
+
+	recovery mail:bilal77su@gmail.com
+	birthday:1977-01-21
+
+firebase
+	***
+	buildscript {
+  	repositories {
+	    // Check that you have the following line (if not, add it):
+	    google()  // Google's Maven repository
+	  }
+	  dependencies {
+	    ...
+	    // Add this line
+	    classpath 'com.google.gms:google-services:4.3.4'
+	  }
+	}
+
+	allprojects {
+	  ...
+ 	 repositories {
+ 	   // Check that you have the following line (if not, add it):
+ 	   google()  // Google's Maven repository
+	    ...
+	  }
+	}
+	****
+	
+
+
+
+apply plugin: 'com.android.application'
+// Add this line
+apply plugin: 'com.google.gms.google-services'
+
+dependencies {
+  // Import the Firebase BoM
+  implementation platform('com.google.firebase:firebase-bom:26.1.0')
+
+  // Add the dependency for the Firebase SDK for Google Analytics
+  // When using the BoM, don't specify versions in Firebase dependencies
+  implementation 'com.google.firebase:firebase-analytics'
+
+  // Add the dependencies for any other desired Firebase products
+  // https://firebase.google.com/docs/android/setup#available-libraries
+}
+****
+
+
+
+r Hot reload.
+R Hot restart.
+h Repeat this help message.
+d Detach (terminate "flutter run" but leave application running).
+c Clear the screen
+q Quit (terminate the application on the device).
+
+
+
+cloud firestore create:
+ rule:
+	rules_version = '2';
+	service cloud.firestore {
+	  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+
++1555 521 5554
+
+
+agora.io
+
+appid : 
+f19076b40663436da2e7f396b5a34629
+app secret :
+cee5d27a64974f6188bb0591395daa48
+
+temp token:
+006f19076b40663436da2e7f396b5a34629IABCHvg7IjSUJPGZQmLCgwEvnoNy+WktRFlsxEkZRBD69b8vo5kAAAAAEAAWal0mxMPLXwEAAQDrwstf
